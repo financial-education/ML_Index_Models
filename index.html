@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2021-04-03 Sat 19:55 -->
+<!-- 2021-04-03 Sat 19:57 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Index Models</title>
@@ -251,14 +251,14 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orgdda0395">1. Data</a>
+<li><a href="#orgf53f76e">1. Data</a>
 <ul>
-<li><a href="#org116630a">1.1. Train vs Tests</a></li>
+<li><a href="#org78c393c">1.1. Train vs Tests</a></li>
 </ul>
 </li>
-<li><a href="#orge6dbb14">2. Index Model</a></li>
-<li><a href="#org7fed521">3. Pytorch</a></li>
-<li><a href="#orgb1dd2e7">4. Keras/Tensorflow</a></li>
+<li><a href="#orgf0e2d95">2. Index Model</a></li>
+<li><a href="#org3c2958a">3. Pytorch</a></li>
+<li><a href="#org965896d">4. Keras/Tensorflow</a></li>
 </ul>
 </div>
 </div>
@@ -274,15 +274,15 @@ Traditional finance research has used the index model as a means to estimate the
 Here we'll compare the predictive ability of the index model relative to <code>deep regressions</code> in PyTorch and Tensorflow.
 </p>
 
-<div id="outline-container-orgdda0395" class="outline-2">
-<h2 id="orgdda0395"><span class="section-number-2">1</span> Data</h2>
+<div id="outline-container-orgf53f76e" class="outline-2">
+<h2 id="orgf53f76e"><span class="section-number-2">1</span> Data</h2>
 <div class="outline-text-2" id="text-1">
 <p>
 We'll use daily data over the last year retrieved from Interactive Brokers:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="org8467741"><span style="color: #859900;">import</span> pandas <span style="color: #859900;">as</span> pd
+<pre class="src src-python" id="orgd5ecf1c"><span style="color: #859900;">import</span> pandas <span style="color: #859900;">as</span> pd
 <span style="color: #859900;">import</span> seaborn <span style="color: #859900;">as</span> sns
 <span style="color: #586e75; font-style: italic;">#</span><span style="color: #586e75; font-style: italic;">import matplotlib as plt</span>
 <span style="color: #859900;">import</span> matplotlib.pyplot <span style="color: #859900;">as</span> plt
@@ -325,8 +325,8 @@ target_stock_data.set_index(<span style="color: #2aa198;">'date'</span>, inplace
 </div>
 
 
-<div id="outline-container-org116630a" class="outline-3">
-<h3 id="org116630a"><span class="section-number-3">1.1</span> Train vs Tests</h3>
+<div id="outline-container-org78c393c" class="outline-3">
+<h3 id="org78c393c"><span class="section-number-3">1.1</span> Train vs Tests</h3>
 <div class="outline-text-3" id="text-1-1">
 <p>
 Here we'll split the data set into training and test sets.  It is important to estimate the parameters of a given model over a different period than the one in which you are testing the model.
@@ -343,8 +343,8 @@ Here we'll split the data set into training and test sets.  It is important to e
 </div>
 
 
-<div id="outline-container-orge6dbb14" class="outline-2">
-<h2 id="orge6dbb14"><span class="section-number-2">2</span> Index Model</h2>
+<div id="outline-container-orgf0e2d95" class="outline-2">
+<h2 id="orgf0e2d95"><span class="section-number-2">2</span> Index Model</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 To calculate the index mode we'll use SciKit Learn.
@@ -368,13 +368,14 @@ To calculate the index mode we'll use SciKit Learn.
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">linear_reg_errors_plot</span> = sns.scatterplot(data=regression_errors[<span style="color: #2aa198;">"Prediction_Errors"</span>])
+<pre class="src src-python">plt.clf()
+<span style="color: #6c71c4;">linear_reg_errors_plot</span> = sns.scatterplot(data=regression_errors[<span style="color: #2aa198;">"Prediction_Errors"</span>])
 linear_reg_errors_plot.figure.savefig(<span style="color: #2aa198;">"linear_reg_errors_plot.png"</span>)
 </pre>
 </div>
 
 
-<div id="org0e890f5" class="figure">
+<div id="org9124bb0" class="figure">
 <p><img src="./linear_reg_errors_plot.png" alt="linear_reg_errors_plot.png" />
 </p>
 </div>
@@ -389,14 +390,14 @@ Calculate the mean-squared errors.
 </div>
 
 <pre class="example">
-Prediction_Errors    0.019967
+Prediction_Errors    0.022629
 dtype: float64
 </pre>
 </div>
 </div>
 
-<div id="outline-container-org7fed521" class="outline-2">
-<h2 id="org7fed521"><span class="section-number-2">3</span> Pytorch</h2>
+<div id="outline-container-org3c2958a" class="outline-2">
+<h2 id="org3c2958a"><span class="section-number-2">3</span> Pytorch</h2>
 <div class="outline-text-2" id="text-3">
 <div class="org-src-container">
 <pre class="src src-python"><span style="color: #859900;">import</span> torch
@@ -468,7 +469,7 @@ Calculate mean-squared error.
 </div>
 
 <pre class="example">
-tensor(0.0289, grad_fn=&lt;StdBackward0&gt;)
+tensor(0.0264, grad_fn=&lt;StdBackward0&gt;)
 </pre>
 
 
@@ -478,8 +479,8 @@ And the results are worse.
 </div>
 </div>
 
-<div id="outline-container-orgb1dd2e7" class="outline-2">
-<h2 id="orgb1dd2e7"><span class="section-number-2">4</span> Keras/Tensorflow</h2>
+<div id="outline-container-org965896d" class="outline-2">
+<h2 id="org965896d"><span class="section-number-2">4</span> Keras/Tensorflow</h2>
 <div class="outline-text-2" id="text-4">
 <div class="org-src-container">
 <pre class="src src-python"><span style="color: #859900;">import</span> tensorflow <span style="color: #859900;">as</span> tf
@@ -537,7 +538,7 @@ error_tensorflow.std()
 </div>
 
 <pre class="example">
-0.03287555338615832
+0.03423197525669902
 </pre>
 
 
@@ -549,7 +550,7 @@ Which is slightly more than the mean-squared error for the Pytorch network.
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Matt Brigida, Ph.D.</p>
-<p class="date">Created: 2021-04-03 Sat 19:55</p>
+<p class="date">Created: 2021-04-03 Sat 19:57</p>
 <p class="validation"><a href="https://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>

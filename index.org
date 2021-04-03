@@ -97,6 +97,7 @@ regression_errors = pd.DataFrame(errors.reshape(-1,1), columns=["Prediction_Erro
 #+RESULTS:
 
 #+BEGIN_SRC python :session *index* :results output :exports both
+plt.clf()
 linear_reg_errors_plot = sns.scatterplot(data=regression_errors["Prediction_Errors"])
 linear_reg_errors_plot.figure.savefig("linear_reg_errors_plot.png")
 #+END_SRC
