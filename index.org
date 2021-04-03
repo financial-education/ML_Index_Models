@@ -1,0 +1,266 @@
+#+title: Index Models
+#+author: Matt Brigida, Ph.D.
+#+email: matthew.brigida@sunypoly.edu
+#+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
+
+
+Traditional finance research has used the index model as a means to estimate the expected return on a stock.  This expected return is then subtracted from the actual return to estimate an =abnormal return=.  The index model for stock =i= is:
+
+$$R_i = \alpha_i + \beta_i R_m + e_i$$
+
+Here we'll compare the predictive ability of the index model relative to =deep regressions= in PyTorch and Tensorflow.
+
+* Data
+
+We'll use daily data over the last year retrieved from Interactive Brokers:
+
+#+name: get_data
+#+BEGIN_SRC python :exports both :session *index*
+import pandas as pd
+import seaborn as sns
+#import matplotlib as plt
+import matplotlib.pyplot as plt
+import numpy as np
+
+import ib_insync as ib
+from ib_insync import *
+import time
+
+ib = IB()
+
+#util.startLoop()
+
+## TWS is on 7496
+## Gateway on 4002
+ib.connect('127.0.0.1', 4002, clientId=1)
+
+spy = Stock("SPY", "SMART", "USD")
+target_stock = Stock("XLE", "SMART", "USD")
+
+spy_data = ib.reqHistoricalData(spy, endDateTime='', durationStr='252 D', barSizeSetting='1 day', whatToShow='TRADES', useRTH=True, formatDate=1, keepUpToDate=False,chartOptions=None)
+spy_data = util.df(spy_data)
+spy_data["date"] = pd.to_datetime(spy_data["date"])
+spy_data.set_index('date', inplace=True)
+spy_returns = spy_data['close'].pct_change()[1:]
+
+time.sleep(10)
+
+target_stock_data = ib.reqHistoricalData(target_stock, endDateTime='', durationStr='252 D', barSizeSetting='1 day', whatToShow='TRADES', useRTH=True, formatDate=1, keepUpToDate=False,chartOptions=None)
+target_stock_data = util.df(target_stock_data)
+target_stock_data["date"] = pd.to_datetime(target_stock_data["date"])
+target_stock_data.set_index('date', inplace=True)
+target_stock_returns = target_stock_data['close'].pct_change()[1:]
+
+
+returns = pd.merge(spy_returns, target_stock_returns, on = 'date')
+returns.columns = ["spy", "target"]
+#+END_SRC
+
+#+RESULTS[2abbf505f38845beea9dc79b763c465d61ac7e7e]: get_data
+
+
+** Train vs Tests
+
+Here we'll split the data set into training and test sets.  It is important to estimate the parameters of a given model over a different period than the one in which you are testing the model.
+
+#+BEGIN_SRC python :session *index*
+from sklearn.model_selection import train_test_split
+
+train, test = train_test_split(returns,  test_size = 0.2)
+#+END_SRC
+
+#+RESULTS:
+
+
+* Index Model
+
+To calculate the index mode we'll use SciKit Learn.
+
+#+BEGIN_SRC python :session *index* :results output :exports both
+from sklearn.linear_model import LinearRegression
+reg = LinearRegression().fit(train.spy.values.reshape(-1,1), train.target.values.reshape(-1,1))
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index* :results output :exports both
+predictions = reg.predict(test.spy.values.reshape(-1,1))
+errors = test.target.values.reshape(-1,1) - predictions
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index* :results output :exports both
+regression_errors = pd.DataFrame(errors.reshape(-1,1), columns=["Prediction_Errors"])
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index* :results output :exports both
+linear_reg_errors_plot = sns.scatterplot(data=regression_errors["Prediction_Errors"])
+linear_reg_errors_plot.figure.savefig("linear_reg_errors_plot.png")
+#+END_SRC
+
+#+RESULTS:
+
+#+name: linear_reg_plot
+[[./linear_reg_errors_plot.png]]
+
+Calculate the mean-squared errors.
+
+#+BEGIN_SRC python :session *index* :results value :exports both
+regression_errors.std()
+#+END_SRC
+
+#+RESULTS:
+: Prediction_Errors    0.018801
+: dtype: float64
+
+* Pytorch
+
+#+BEGIN_SRC  python :session *index* :results output :exports both
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+batch_size = 5
+train_dl = DataLoader(train, batch_size, shuffle=False)
+
+spy_torch = torch.Tensor([[x] for x in list(train.spy)])
+target_torch = torch.Tensor([[x] for x in list(train.target)])
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC  python :session *index* :results output :exports both
+# define a network
+class Net(torch.nn.Module):
+    def __init__(self, n_feature, n_hidden, n_output):
+        super(Net, self).__init__()
+        self.hidden = torch.nn.Linear(n_feature, n_hidden)   # hidden layer
+        self.predict = torch.nn.Linear(n_hidden, n_output)   # output layer
+
+    def forward(self, x):
+        x = F.relu(self.hidden(x))      # activation function for hidden layer
+        x = self.predict(x)             # linear output
+        return x
+
+net = Net(n_feature=1, n_hidden=100, n_output=1)     # define the network
+# print(net)  # net architecture
+optimizer = torch.optim.SGD(net.parameters(), lr=0.2)
+loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC  python :session *index* :results output :exports both
+# train the network
+x = spy_torch
+y = target_torch
+
+for t in range(500):
+  
+    prediction = net(x)     # input x and predict based on x
+
+    loss = loss_func(prediction, y)     # must be (1. nn output, 2. target)
+
+    optimizer.zero_grad()   # clear gradients for next train
+    loss.backward()         # backpropagation, compute gradients
+    optimizer.step()        # ap
+#+END_SRC    
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index*
+## Prediction Errors
+spy_test_torch = torch.Tensor([[x] for x in list(test.spy)])
+target_test_torch = torch.Tensor([[x] for x in list(test.target)])
+
+preds_torch = net(spy_test_torch)
+error_torch = preds_torch - target_test_torch
+#+END_SRC
+
+#+RESULTS:
+
+Calculate mean-squared error.
+
+#+BEGIN_SRC python :session *index* :results value :exports both
+error_torch.std()
+#+END_SRC
+
+#+RESULTS:
+: tensor(0.0254, grad_fn=<StdBackward0>)
+
+And the results are worse.
+
+* Keras/Tensorflow
+
+
+#+BEGIN_SRC python :session *index*
+import tensorflow as tf
+
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.layers.experimental import preprocessing
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index*
+index_model = tf.keras.Sequential([
+    layers.Dense(units=1)
+])
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index* :results value :exports both
+index_model.compile(
+    optimizer=tf.optimizers.Adam(learning_rate=0.1),
+    loss='mean_absolute_error')
+#+END_SRC
+
+#+RESULTS:
+: None
+
+#+BEGIN_SRC python :session *index* :results value :exports both
+history = index_model.fit(
+    train.spy, train.target,
+    epochs=100,
+    # suppress logging
+    verbose=0,
+    # Calculate validation results on 20% of the training data
+    validation_split = 0.2)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index* :results value :exports both
+test_results = {}
+
+test_results['index_model'] = index_model.evaluate(
+    test.spy,
+    test.target, verbose=0)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC python :session *index* :results value :exports none
+test_results['index_model']
+#+END_SRC
+
+#+RESULTS:
+: 0.019778572022914886
+
+
+
+#+BEGIN_SRC python :session *index* :results value :exports both
+tensorflow_predictions = index_model.predict(test.spy)
+error_tensorflow = tensorflow_predictions - test.target.values
+error_tensorflow.std()
+#+END_SRC
+
+#+RESULTS:
+: 0.03595855441787083
+
+Which is slightly more than the mean-squared error for the Pytorch network.
