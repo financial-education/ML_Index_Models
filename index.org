@@ -1,6 +1,7 @@
 #+title: Index Models
 #+author: Matt Brigida, Ph.D.
 #+email: matthew.brigida@sunypoly.edu
+#+PROPERTY: header-args :eval no
 #+SETUPFILE: https://fniessen.github.io/org-html-themes/org/theme-readtheorg.setup
 
 
@@ -12,7 +13,7 @@ Here we'll compare the predictive ability of the index model relative to =deep r
 
 * Data
 
-We'll use daily data over the last year retrieved from Interactive Brokers:
+We'll use daily data over the last year retrieved from Interactive Brokers API via the ib_insync Python package:
 
 #+name: get_data
 #+BEGIN_SRC python :exports both :session *index*
@@ -119,6 +120,8 @@ regression_errors.std()
 
 * Pytorch
 
+Pytorch is a machine learning and deep neural network framework from Facebook research. It is similar to the numpy framework, but with GPU acceleration.  Pytorch is more flexible compared to Tensorflow (below), but usually requires more code.
+
 #+BEGIN_SRC  python :session *index* :results output :exports both
 import torch
 import torch.nn as nn
@@ -133,23 +136,25 @@ target_torch = torch.Tensor([[x] for x in list(train.target)])
 
 #+RESULTS:
 
+The index model regression is simple, and so we'll create a similarly simply neural network below by subclassing the torch.nn.Module.  
+
+
 #+BEGIN_SRC  python :session *index* :results output :exports both
 # define a network
 class Net(torch.nn.Module):
     def __init__(self, n_feature, n_hidden, n_output):
         super(Net, self).__init__()
-        self.hidden = torch.nn.Linear(n_feature, n_hidden)   # hidden layer
-        self.predict = torch.nn.Linear(n_hidden, n_output)   # output layer
+        self.hidden = torch.nn.Linear(n_feature, n_hidden)   
+        self.predict = torch.nn.Linear(n_hidden, n_output)   
 
     def forward(self, x):
-        x = F.relu(self.hidden(x))      # activation function for hidden layer
-        x = self.predict(x)             # linear output
+        x = F.relu(self.hidden(x))      
+        x = self.predict(x)             
         return x
 
-net = Net(n_feature=1, n_hidden=100, n_output=1)     # define the network
-# print(net)  # net architecture
+net = Net(n_feature=1, n_hidden=100, n_output=1)
 optimizer = torch.optim.SGD(net.parameters(), lr=0.2)
-loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
+loss_func = torch.nn.MSELoss()  # mean squared error loss
 #+END_SRC
 
 #+RESULTS:
@@ -161,13 +166,13 @@ y = target_torch
 
 for t in range(500):
   
-    prediction = net(x)     # input x and predict based on x
+    prediction = net(x)     # input the market returns and predict
 
-    loss = loss_func(prediction, y)     # must be (1. nn output, 2. target)
+    loss = loss_func(prediction, y)
 
-    optimizer.zero_grad()   # clear gradients for next train
-    loss.backward()         # backpropagation, compute gradients
-    optimizer.step()        # ap
+    optimizer.zero_grad()   # zero out gradients
+    loss.backward()         # backprop, compute gradients
+    optimizer.step()       
 #+END_SRC    
 
 #+RESULTS:
@@ -192,7 +197,7 @@ error_torch.std()
 #+RESULTS:
 : tensor(0.0254, grad_fn=<StdBackward0>)
 
-And the results are worse.
+And the results are slightly worse.
 
 * Keras/Tensorflow
 
@@ -228,9 +233,8 @@ index_model.compile(
 history = index_model.fit(
     train.spy, train.target,
     epochs=100,
-    # suppress logging
     verbose=0,
-    # Calculate validation results on 20% of the training data
+    # Calculate validation results on some percent of the training data
     validation_split = 0.2)
 #+END_SRC
 
@@ -253,7 +257,7 @@ test_results['index_model']
 #+RESULTS:
 : 0.019778572022914886
 
-
+Calculate predictions in the test data set.
 
 #+BEGIN_SRC python :session *index* :results value :exports both
 tensorflow_predictions = index_model.predict(test.spy)
@@ -265,3 +269,7 @@ error_tensorflow.std()
 : 0.03595855441787083
 
 Which is slightly more than the mean-squared error for the Pytorch network.
+
+* Conclusion
+
+Arguably, we could improve these neural networks and lower their prediction errors (feel free to do this as a bonus exercise).  That said, it seems that a simple linear equation (as in the regression) explains the relationship between the stock and market returns well.  Remember, deep neural networks are powerful because they can approximate any arbitrary (unknown) functional relationship.  But if we know the appropriate relationship, then neural nets lose their edge.

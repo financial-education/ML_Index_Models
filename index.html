@@ -3,7 +3,7 @@
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
 <head>
-<!-- 2021-04-03 Sat 19:57 -->
+<!-- 2021-08-25 Wed 22:27 -->
 <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Index Models</title>
@@ -200,7 +200,7 @@
 <script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/lib/js/jquery.stickytableheaders.min.js"></script>
 <script type="text/javascript" src="https://fniessen.github.io/org-html-themes/src/readtheorg_theme/js/readtheorg.js"></script>
 <script type="text/javascript">
-// @license magnet:?xt=urn:btih:e95b018ef3580986a04669f1b5879592219e2a7a&dn=public-domain.txt Public Domain
+// @license magnet:?xt=urn:btih:1f739d935676111cfff4b4693e3816e664797050&amp;dn=gpl-3.0.txt GPL-v3-or-Later
 <!--/*--><![CDATA[/*><!--*/
      function CodeHighlightOn(elem, id)
      {
@@ -251,14 +251,15 @@
 <h2>Table of Contents</h2>
 <div id="text-table-of-contents">
 <ul>
-<li><a href="#orgf53f76e">1. Data</a>
+<li><a href="#org78add1d">1. Data</a>
 <ul>
-<li><a href="#org78c393c">1.1. Train vs Tests</a></li>
+<li><a href="#org1189103">1.1. Train vs Tests</a></li>
 </ul>
 </li>
-<li><a href="#orgf0e2d95">2. Index Model</a></li>
-<li><a href="#org3c2958a">3. Pytorch</a></li>
-<li><a href="#org965896d">4. Keras/Tensorflow</a></li>
+<li><a href="#org1f7354d">2. Index Model</a></li>
+<li><a href="#orgd4ec888">3. Pytorch</a></li>
+<li><a href="#org3540aa1">4. Keras/Tensorflow</a></li>
+<li><a href="#org0c30e6f">5. Conclusion</a></li>
 </ul>
 </div>
 </div>
@@ -274,68 +275,68 @@ Traditional finance research has used the index model as a means to estimate the
 Here we'll compare the predictive ability of the index model relative to <code>deep regressions</code> in PyTorch and Tensorflow.
 </p>
 
-<div id="outline-container-orgf53f76e" class="outline-2">
-<h2 id="orgf53f76e"><span class="section-number-2">1</span> Data</h2>
+<div id="outline-container-org78add1d" class="outline-2">
+<h2 id="org78add1d"><span class="section-number-2">1.</span> Data</h2>
 <div class="outline-text-2" id="text-1">
 <p>
-We'll use daily data over the last year retrieved from Interactive Brokers:
+We'll use daily data over the last year retrieved from Interactive Brokers API via the ib<sub>insync</sub> Python package:
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python" id="orgd5ecf1c"><span style="color: #859900;">import</span> pandas <span style="color: #859900;">as</span> pd
-<span style="color: #859900;">import</span> seaborn <span style="color: #859900;">as</span> sns
-<span style="color: #586e75; font-style: italic;">#</span><span style="color: #586e75; font-style: italic;">import matplotlib as plt</span>
-<span style="color: #859900;">import</span> matplotlib.pyplot <span style="color: #859900;">as</span> plt
-<span style="color: #859900;">import</span> numpy <span style="color: #859900;">as</span> np
+<pre class="src src-python" id="org16263d7">import pandas as pd
+import seaborn as sns
+#import matplotlib as plt
+import matplotlib.pyplot as plt
+import numpy as np
 
-<span style="color: #859900;">import</span> ib_insync <span style="color: #859900;">as</span> ib
-<span style="color: #859900;">from</span> ib_insync <span style="color: #859900;">import</span> *
-<span style="color: #859900;">import</span> time
+import ib_insync as ib
+from ib_insync import *
+import time
 
-<span style="color: #6c71c4;">ib</span> = IB()
+ib = IB()
 
-<span style="color: #586e75; font-style: italic;">#</span><span style="color: #586e75; font-style: italic;">util.startLoop()</span>
+#util.startLoop()
 
-<span style="color: #586e75; font-style: italic;">## </span><span style="color: #586e75; font-style: italic;">TWS is on 7496</span>
-<span style="color: #586e75; font-style: italic;">## </span><span style="color: #586e75; font-style: italic;">Gateway on 4002</span>
-ib.connect(<span style="color: #2aa198;">'127.0.0.1'</span>, 4002, clientId=1)
+## TWS is on 7496
+## Gateway on 4002
+ib.connect('127.0.0.1', 4002, clientId=1)
 
-<span style="color: #6c71c4;">spy</span> = Stock(<span style="color: #2aa198;">"SPY"</span>, <span style="color: #2aa198;">"SMART"</span>, <span style="color: #2aa198;">"USD"</span>)
-<span style="color: #6c71c4;">target_stock</span> = Stock(<span style="color: #2aa198;">"XLE"</span>, <span style="color: #2aa198;">"SMART"</span>, <span style="color: #2aa198;">"USD"</span>)
+spy = Stock("SPY", "SMART", "USD")
+target_stock = Stock("XLE", "SMART", "USD")
 
-<span style="color: #6c71c4;">spy_data</span> = ib.reqHistoricalData(spy, endDateTime=<span style="color: #2aa198;">''</span>, durationStr=<span style="color: #2aa198;">'252 D'</span>, barSizeSetting=<span style="color: #2aa198;">'1 day'</span>, whatToShow=<span style="color: #2aa198;">'TRADES'</span>, useRTH=<span style="color: #268bd2;">True</span>, formatDate=1, keepUpToDate=<span style="color: #268bd2;">False</span>,chartOptions=<span style="color: #268bd2;">None</span>)
-<span style="color: #6c71c4;">spy_data</span> = util.df(spy_data)
-<span style="color: #6c71c4;">spy_data</span>[<span style="color: #2aa198;">"date"</span>] = pd.to_datetime(spy_data[<span style="color: #2aa198;">"date"</span>])
-spy_data.set_index(<span style="color: #2aa198;">'date'</span>, inplace=<span style="color: #268bd2;">True</span>)
-<span style="color: #6c71c4;">spy_returns</span> = spy_data[<span style="color: #2aa198;">'close'</span>].pct_change()[1:]
+spy_data = ib.reqHistoricalData(spy, endDateTime='', durationStr='252 D', barSizeSetting='1 day', whatToShow='TRADES', useRTH=True, formatDate=1, keepUpToDate=False,chartOptions=None)
+spy_data = util.df(spy_data)
+spy_data["date"] = pd.to_datetime(spy_data["date"])
+spy_data.set_index('date', inplace=True)
+spy_returns = spy_data['close'].pct_change()[1:]
 
 time.sleep(10)
 
-<span style="color: #6c71c4;">target_stock_data</span> = ib.reqHistoricalData(target_stock, endDateTime=<span style="color: #2aa198;">''</span>, durationStr=<span style="color: #2aa198;">'252 D'</span>, barSizeSetting=<span style="color: #2aa198;">'1 day'</span>, whatToShow=<span style="color: #2aa198;">'TRADES'</span>, useRTH=<span style="color: #268bd2;">True</span>, formatDate=1, keepUpToDate=<span style="color: #268bd2;">False</span>,chartOptions=<span style="color: #268bd2;">None</span>)
-<span style="color: #6c71c4;">target_stock_data</span> = util.df(target_stock_data)
-<span style="color: #6c71c4;">target_stock_data</span>[<span style="color: #2aa198;">"date"</span>] = pd.to_datetime(target_stock_data[<span style="color: #2aa198;">"date"</span>])
-target_stock_data.set_index(<span style="color: #2aa198;">'date'</span>, inplace=<span style="color: #268bd2;">True</span>)
-<span style="color: #6c71c4;">target_stock_returns</span> = target_stock_data[<span style="color: #2aa198;">'close'</span>].pct_change()[1:]
+target_stock_data = ib.reqHistoricalData(target_stock, endDateTime='', durationStr='252 D', barSizeSetting='1 day', whatToShow='TRADES', useRTH=True, formatDate=1, keepUpToDate=False,chartOptions=None)
+target_stock_data = util.df(target_stock_data)
+target_stock_data["date"] = pd.to_datetime(target_stock_data["date"])
+target_stock_data.set_index('date', inplace=True)
+target_stock_returns = target_stock_data['close'].pct_change()[1:]
 
 
-<span style="color: #6c71c4;">returns</span> = pd.merge(spy_returns, target_stock_returns, on = <span style="color: #2aa198;">'date'</span>)
-<span style="color: #6c71c4;">returns.columns</span> = [<span style="color: #2aa198;">"spy"</span>, <span style="color: #2aa198;">"target"</span>]
+returns = pd.merge(spy_returns, target_stock_returns, on = 'date')
+returns.columns = ["spy", "target"]
 </pre>
 </div>
 </div>
 
 
-<div id="outline-container-org78c393c" class="outline-3">
-<h3 id="org78c393c"><span class="section-number-3">1.1</span> Train vs Tests</h3>
+<div id="outline-container-org1189103" class="outline-3">
+<h3 id="org1189103"><span class="section-number-3">1.1.</span> Train vs Tests</h3>
 <div class="outline-text-3" id="text-1-1">
 <p>
 Here we'll split the data set into training and test sets.  It is important to estimate the parameters of a given model over a different period than the one in which you are testing the model.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #859900;">from</span> sklearn.model_selection <span style="color: #859900;">import</span> train_test_split
+<pre class="src src-python">from sklearn.model_selection import train_test_split
 
-<span style="color: #6c71c4;">train</span>, <span style="color: #6c71c4;">test</span> = train_test_split(returns,  test_size = 0.2)
+train, test = train_test_split(returns,  test_size = 0.2)
 </pre>
 </div>
 </div>
@@ -343,39 +344,39 @@ Here we'll split the data set into training and test sets.  It is important to e
 </div>
 
 
-<div id="outline-container-orgf0e2d95" class="outline-2">
-<h2 id="orgf0e2d95"><span class="section-number-2">2</span> Index Model</h2>
+<div id="outline-container-org1f7354d" class="outline-2">
+<h2 id="org1f7354d"><span class="section-number-2">2.</span> Index Model</h2>
 <div class="outline-text-2" id="text-2">
 <p>
 To calculate the index mode we'll use SciKit Learn.
 </p>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #859900;">from</span> sklearn.linear_model <span style="color: #859900;">import</span> LinearRegression
-<span style="color: #6c71c4;">reg</span> = LinearRegression().fit(train.spy.values.reshape(-1,1), train.target.values.reshape(-1,1))
+<pre class="src src-python">from sklearn.linear_model import LinearRegression
+reg = LinearRegression().fit(train.spy.values.reshape(-1,1), train.target.values.reshape(-1,1))
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">predictions</span> = reg.predict(test.spy.values.reshape(-1,1))
-<span style="color: #6c71c4;">errors</span> = test.target.values.reshape(-1,1) - predictions
+<pre class="src src-python">predictions = reg.predict(test.spy.values.reshape(-1,1))
+errors = test.target.values.reshape(-1,1) - predictions
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">regression_errors</span> = pd.DataFrame(errors.reshape(-1,1), columns=[<span style="color: #2aa198;">"Prediction_Errors"</span>])
+<pre class="src src-python">regression_errors = pd.DataFrame(errors.reshape(-1,1), columns=["Prediction_Errors"])
 </pre>
 </div>
 
 <div class="org-src-container">
 <pre class="src src-python">plt.clf()
-<span style="color: #6c71c4;">linear_reg_errors_plot</span> = sns.scatterplot(data=regression_errors[<span style="color: #2aa198;">"Prediction_Errors"</span>])
-linear_reg_errors_plot.figure.savefig(<span style="color: #2aa198;">"linear_reg_errors_plot.png"</span>)
+linear_reg_errors_plot = sns.scatterplot(data=regression_errors["Prediction_Errors"])
+linear_reg_errors_plot.figure.savefig("linear_reg_errors_plot.png")
 </pre>
 </div>
 
 
-<div id="org9124bb0" class="figure">
+<div id="orge3fffcf" class="figure">
 <p><img src="./linear_reg_errors_plot.png" alt="linear_reg_errors_plot.png" />
 </p>
 </div>
@@ -390,72 +391,80 @@ Calculate the mean-squared errors.
 </div>
 
 <pre class="example">
-Prediction_Errors    0.022629
+Prediction_Errors    0.018801
 dtype: float64
 </pre>
 </div>
 </div>
 
-<div id="outline-container-org3c2958a" class="outline-2">
-<h2 id="org3c2958a"><span class="section-number-2">3</span> Pytorch</h2>
+<div id="outline-container-orgd4ec888" class="outline-2">
+<h2 id="orgd4ec888"><span class="section-number-2">3.</span> Pytorch</h2>
 <div class="outline-text-2" id="text-3">
-<div class="org-src-container">
-<pre class="src src-python"><span style="color: #859900;">import</span> torch
-<span style="color: #859900;">import</span> torch.nn <span style="color: #859900;">as</span> nn
-<span style="color: #859900;">import</span> torch.nn.functional <span style="color: #859900;">as</span> F
-<span style="color: #859900;">from</span> torch.utils.data <span style="color: #859900;">import</span> DataLoader
-<span style="color: #6c71c4;">batch_size</span> = 5
-<span style="color: #6c71c4;">train_dl</span> = DataLoader(train, batch_size, shuffle=<span style="color: #268bd2;">False</span>)
+<p>
+Pytorch is a machine learning and deep neural network framework from Facebook research. It is similar to the numpy framework, but with GPU acceleration.  Pytorch is more flexible compared to Tensorflow (below), but usually requires more code.
+</p>
 
-<span style="color: #6c71c4;">spy_torch</span> = torch.Tensor([[x] <span style="color: #859900;">for</span> x <span style="color: #859900;">in</span> <span style="color: #6c71c4;">list</span>(train.spy)])
-<span style="color: #6c71c4;">target_torch</span> = torch.Tensor([[x] <span style="color: #859900;">for</span> x <span style="color: #859900;">in</span> <span style="color: #6c71c4;">list</span>(train.target)])
+<div class="org-src-container">
+<pre class="src src-python">import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch.utils.data import DataLoader
+batch_size = 5
+train_dl = DataLoader(train, batch_size, shuffle=False)
+
+spy_torch = torch.Tensor([[x] for x in list(train.spy)])
+target_torch = torch.Tensor([[x] for x in list(train.target)])
+</pre>
+</div>
+
+<p>
+The index model regression is simple, and so we'll create a similarly simply neural network below by subclassing the torch.nn.Module.  
+</p>
+
+
+<div class="org-src-container">
+<pre class="src src-python"># define a network
+class Net(torch.nn.Module):
+    def __init__(self, n_feature, n_hidden, n_output):
+	super(Net, self).__init__()
+	self.hidden = torch.nn.Linear(n_feature, n_hidden)   
+	self.predict = torch.nn.Linear(n_hidden, n_output)   
+
+    def forward(self, x):
+	x = F.relu(self.hidden(x))      
+	x = self.predict(x)             
+	return x
+
+net = Net(n_feature=1, n_hidden=100, n_output=1)
+optimizer = torch.optim.SGD(net.parameters(), lr=0.2)
+loss_func = torch.nn.MSELoss()  # mean squared error loss
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">define a network</span>
-<span style="color: #859900;">class</span> <span style="color: #268bd2;">Net</span>(torch.nn.Module):
-    <span style="color: #859900;">def</span> <span style="color: #b58900;">__init__</span>(<span style="color: #859900;">self</span>, n_feature, n_hidden, n_output):
-        <span style="color: #6c71c4;">super</span>(Net, <span style="color: #859900;">self</span>).__init__()
-        <span style="color: #859900;">self</span>.hidden = torch.nn.Linear(n_feature, n_hidden)   <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">hidden layer</span>
-        <span style="color: #859900;">self</span>.predict = torch.nn.Linear(n_hidden, n_output)   <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">output layer</span>
+<pre class="src src-python"># train the network
+x = spy_torch
+y = target_torch
 
-    <span style="color: #859900;">def</span> <span style="color: #b58900;">forward</span>(<span style="color: #859900;">self</span>, x):
-        <span style="color: #6c71c4;">x</span> = F.relu(<span style="color: #859900;">self</span>.hidden(x))      <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">activation function for hidden layer</span>
-        <span style="color: #6c71c4;">x</span> = <span style="color: #859900;">self</span>.predict(x)             <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">linear output</span>
-        <span style="color: #859900;">return</span> x
+for t in range(500):
 
-<span style="color: #6c71c4;">net</span> = Net(n_feature=1, n_hidden=100, n_output=1)     <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">define the network</span>
-<span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">print(net)  # net architecture</span>
-<span style="color: #6c71c4;">optimizer</span> = torch.optim.SGD(net.parameters(), lr=0.2)
-<span style="color: #6c71c4;">loss_func</span> = torch.nn.MSELoss()  <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">this is for regression mean squared loss</span>
+    prediction = net(x)     # input the market returns and predict
+
+    loss = loss_func(prediction, y)
+
+    optimizer.zero_grad()   # zero out gradients
+    loss.backward()         # backprop, compute gradients
+    optimizer.step()       
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">train the network</span>
-<span style="color: #6c71c4;">x</span> = spy_torch
-<span style="color: #6c71c4;">y</span> = target_torch
+<pre class="src src-python">## Prediction Errors
+spy_test_torch = torch.Tensor([[x] for x in list(test.spy)])
+target_test_torch = torch.Tensor([[x] for x in list(test.target)])
 
-<span style="color: #859900;">for</span> t <span style="color: #859900;">in</span> <span style="color: #6c71c4;">range</span>(500):
-
-    <span style="color: #6c71c4;">prediction</span> = net(x)     <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">input x and predict based on x</span>
-
-    <span style="color: #6c71c4;">loss</span> = loss_func(prediction, y)     <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">must be (1. nn output, 2. target)</span>
-
-    optimizer.zero_grad()   <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">clear gradients for next train</span>
-    loss.backward()         <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">backpropagation, compute gradients</span>
-    optimizer.step()        <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">ap</span>
-</pre>
-</div>
-
-<div class="org-src-container">
-<pre class="src src-python"><span style="color: #586e75; font-style: italic;">## </span><span style="color: #586e75; font-style: italic;">Prediction Errors</span>
-<span style="color: #6c71c4;">spy_test_torch</span> = torch.Tensor([[x] <span style="color: #859900;">for</span> x <span style="color: #859900;">in</span> <span style="color: #6c71c4;">list</span>(test.spy)])
-<span style="color: #6c71c4;">target_test_torch</span> = torch.Tensor([[x] <span style="color: #859900;">for</span> x <span style="color: #859900;">in</span> <span style="color: #6c71c4;">list</span>(test.target)])
-
-<span style="color: #6c71c4;">preds_torch</span> = net(spy_test_torch)
-<span style="color: #6c71c4;">error_torch</span> = preds_torch - target_test_torch
+preds_torch = net(spy_test_torch)
+error_torch = preds_torch - target_test_torch
 </pre>
 </div>
 
@@ -469,39 +478,39 @@ Calculate mean-squared error.
 </div>
 
 <pre class="example">
-tensor(0.0264, grad_fn=&lt;StdBackward0&gt;)
+tensor(0.0254, grad_fn=&lt;StdBackward0&gt;)
 </pre>
 
 
 <p>
-And the results are worse.
+And the results are slightly worse.
 </p>
 </div>
 </div>
 
-<div id="outline-container-org965896d" class="outline-2">
-<h2 id="org965896d"><span class="section-number-2">4</span> Keras/Tensorflow</h2>
+<div id="outline-container-org3540aa1" class="outline-2">
+<h2 id="org3540aa1"><span class="section-number-2">4.</span> Keras/Tensorflow</h2>
 <div class="outline-text-2" id="text-4">
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #859900;">import</span> tensorflow <span style="color: #859900;">as</span> tf
+<pre class="src src-python">import tensorflow as tf
 
-<span style="color: #859900;">from</span> tensorflow <span style="color: #859900;">import</span> keras
-<span style="color: #859900;">from</span> tensorflow.keras <span style="color: #859900;">import</span> layers
-<span style="color: #859900;">from</span> tensorflow.keras.layers.experimental <span style="color: #859900;">import</span> preprocessing
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras.layers.experimental import preprocessing
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">index_model</span> = tf.keras.Sequential([
+<pre class="src src-python">index_model = tf.keras.Sequential([
     layers.Dense(units=1)
 ])
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python">index_model.<span style="color: #6c71c4;">compile</span>(
+<pre class="src src-python">index_model.compile(
     optimizer=tf.optimizers.Adam(learning_rate=0.1),
-    loss=<span style="color: #2aa198;">'mean_absolute_error'</span>)
+    loss='mean_absolute_error')
 </pre>
 </div>
 
@@ -511,34 +520,37 @@ None
 
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">history</span> = index_model.fit(
+<pre class="src src-python">history = index_model.fit(
     train.spy, train.target,
     epochs=100,
-    <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">suppress logging</span>
     verbose=0,
-    <span style="color: #586e75; font-style: italic;"># </span><span style="color: #586e75; font-style: italic;">Calculate validation results on 20% of the training data</span>
+    # Calculate validation results on some percent of the training data
     validation_split = 0.2)
 </pre>
 </div>
 
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">test_results</span> = {}
+<pre class="src src-python">test_results = {}
 
-<span style="color: #6c71c4;">test_results</span>[<span style="color: #2aa198;">'index_model'</span>] = index_model.evaluate(
+test_results['index_model'] = index_model.evaluate(
     test.spy,
     test.target, verbose=0)
 </pre>
 </div>
 
+<p>
+Calculate predictions in the test data set.
+</p>
+
 <div class="org-src-container">
-<pre class="src src-python"><span style="color: #6c71c4;">tensorflow_predictions</span> = index_model.predict(test.spy)
-<span style="color: #6c71c4;">error_tensorflow</span> = tensorflow_predictions - test.target.values
+<pre class="src src-python">tensorflow_predictions = index_model.predict(test.spy)
+error_tensorflow = tensorflow_predictions - test.target.values
 error_tensorflow.std()
 </pre>
 </div>
 
 <pre class="example">
-0.03423197525669902
+0.03595855441787083
 </pre>
 
 
@@ -547,10 +559,19 @@ Which is slightly more than the mean-squared error for the Pytorch network.
 </p>
 </div>
 </div>
+
+<div id="outline-container-org0c30e6f" class="outline-2">
+<h2 id="org0c30e6f"><span class="section-number-2">5.</span> Conclusion</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+Arguably, we could improve these neural networks and lower their prediction errors (feel free to do this as a bonus exercise).  That said, it seems that a simple linear equation (as in the regression) explains the relationship between the stock and market returns well.  Remember, deep neural networks are powerful because they can approximate any arbitrary (unknown) functional relationship.  But if we know the appropriate relationship, then neural nets lose their edge.
+</p>
+</div>
+</div>
 </div>
 <div id="postamble" class="status">
 <p class="author">Author: Matt Brigida, Ph.D.</p>
-<p class="date">Created: 2021-04-03 Sat 19:57</p>
+<p class="date">Created: 2021-08-25 Wed 22:27</p>
 <p class="validation"><a href="https://validator.w3.org/check?uri=referer">Validate</a></p>
 </div>
 </body>
